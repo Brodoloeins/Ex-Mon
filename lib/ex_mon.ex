@@ -4,6 +4,7 @@ defmodule ExMon do
 
   @computer_name "Robotinik"
   @computer_moves [:move_avg, :move_rnd, :move_heal]
+  @computer_moves_40 [:move_avg, :move_rnd, :move_heal, :move_heal]
 
   def create_player(name, avg, rnd, heal) do
     Player.build(name, avg, rnd, heal)
@@ -26,12 +27,19 @@ defmodule ExMon do
   defp handle_status(:game_over, _move), do: Status.print_round_message(Game.info())
 
   defp handle_status(_other, move) do
-    move
-    |> Actions.fetch_move()
-    |> do_move()
 
-    computer_move(Game.info())
+    Game.info()
+    |> Map.get(:turn)
+    |> turn_checker(move)
+
+    Game.info()
+    |> Map.get(:turn)
+    |> turn_checker(move)
+
   end
+
+  defp turn_checker(turn, _move) when turn == :computer, do: computer_move(Game.info())
+  defp turn_checker(turn, move) when turn == :player, do: move|>Actions.fetch_move()|>do_move()
 
   defp do_move({:error, move}), do: Status.print_wrong_move_message(move)
   defp do_move({:ok, move}) do
@@ -42,10 +50,16 @@ defmodule ExMon do
     Status.print_round_message(Game.info())
   end
 
-  defp computer_move(%{turn: :computer, status: :continue}) do
-    {:ok, Enum.random(@computer_moves)}
-    |> do_move()
-  end
+  defp computer_move(%{turn: :computer}) do
+    life = :computer
+    |> Game.fetch_player()
+    |> Map.get(:life)
 
+    do_move({:ok, randomize(life)})
+  end
   defp computer_move(_), do: :ok
+
+  defp randomize(life) when life <= 40, do: Enum.random(@computer_moves_40)
+  defp randomize(_life), do: Enum.random(@computer_moves)
+
 end
